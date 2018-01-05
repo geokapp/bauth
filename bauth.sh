@@ -28,7 +28,7 @@ BAUTH_TYPE="totp"
 BAUTH_DIGITS="6"
 BAUTH_OATHTOOL="oathtool --${BAUTH_BASE} --${BAUTH_TYPE} -d ${BAUTH_DIGITS}"
 BAUTH_GPG="gpg -q"
-BAUTH_VERSION="1.0.0"
+BAUTH_VERSION="1.1.0"
 GPG_UID=""
 
 #
@@ -157,8 +157,11 @@ bauth-put()
     fi
 
     if [ "$BAUTH_KEY" == "" ]; then
-	echo "Error: a service secret key is needed."
-	exit 1
+	read -p "Please provide the secret key: " -s BAUTH_KEY
+	if [ "$BAUTH_KEY" == "" ]; then
+	    echo "Error: a service secret key is needed."
+	    exit 1
+	fi
     fi
 
     if [ ! -d ${BAUTH_HOME} ]; then

@@ -24,8 +24,12 @@ First, clone this repository to a local directory. Then, `cd` into the cloned di
 You need to have a gpg key configured in order to use bauth. If not, now it is a good time to [create](https://www.gnupg.org/documentation/howtos.html) one. bauth can either use the provided email address (with the `-m` option) as a gpg user ID, or you can specify a different user ID with the `-u` option.
 Suppose that the email address an@email is a valid user ID in your gpg key. To register a new secret key type the following: 
 ```
+set +o history
 ./bauth.sh -p -s=a_service -e=an@email -k=secret_key
+set -o history
 ```
+Notice that before using bauth to register a new secret key we disable the command history. This step is not needed if we do not use the `-k` argument. In this case, bauth will ask for a secret key later.
+
 To retrieve a one-time password for a registered service type the following:
 ```
 ./bauth.sh -g -s=a_service -e=an@email
