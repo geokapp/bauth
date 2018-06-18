@@ -17,10 +17,11 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-BAUTH_HOME="${HOME}/.bauth"
+BAUTH_HOME="${HOME}/Cloud/Dropbox/.bauth"
 BAUTH_KEY=""
 BAUTH_SERVICE=""
 BAUTH_EMAIL=""
+BAUTH_NEWEMAIL=""
 BAUTH_OPERATION=""
 BAUTH_DEPS="mkdir mv cat sed rm grep echo oathtool gpg"
 BAUTH_BASE="base32"
@@ -56,8 +57,10 @@ show-help()
     echo "-p, --put               Store a service key for a new service."
     echo "-g, --get               Get an one-time password."
     echo "-r, --remove            Remove an one-time password."
+    echo "-c, --change            Change the email address of an existing record."
     echo "-s, --service=SERVICE   Specify a service name."
     echo "-e, --email=EMAIL       Specify an email address."
+    echo "-n, --newemail=EMAIL    Specify a new email address to overwrite an existing one."
     echo "-k, --key=KEY           Specify a service secret key."
     echo "-m, --bauth-home=PATH   Specify the home location of the bauth tool."    
     echo "-u, --user-id=UID       Specify an OpenPGP user ID."
@@ -138,7 +141,6 @@ bauth-get()
 				   grep "${BAUTH_SERVICE}-${BAUTH_EMAIL}" | cut -d " " -f2); then
 	exit 1;
     fi
-    exit 0
 }
 
 #
@@ -192,7 +194,6 @@ bauth-put()
     fi
     mv ${BAUTH_HOME}/pool.gpg.tmp ${BAUTH_HOME}/pool.gpg &&
     echo "${BAUTH_SERVICE} (${BAUTH_EMAIL}) added." 
-    exit 0
 }
 
 #
@@ -235,9 +236,56 @@ bauth-remove()
     fi
     mv ${BAUTH_HOME}/pool.gpg.tmp ${BAUTH_HOME}/pool.gpg &&
     echo "${BAUTH_SERVICE} (${BAUTH_EMAIL}) deleted." 
-    exit 0
 }
+
+#
+# bauth-change - Changes the email address of an existing record.
+#
+bauth-change()
+{
+    if [ "$BAUTH_SERVICE" == "" ]; then
+	echo "Error: a service name is needed."
+	exit 1
+    fi
+
+    if [ "$BAUTH_EMAIL" == "" ]; then
+	echo "Error: an old email address is needed."
+	exit 1
+    fi
+
+    if [ "$BAUTH_NEWEMAIL" == "" ]; then
+	echo "Error: a new email address is needed."
+	exit 1
+    fi
+
+    if [ ! -d ${BAUTH_HOME} ]; then
+	echo "Error: the directory ${BAUTH_HOME} does not exist."
+	exit 1
+    fi
     
+    if [ ! -f ${BAUTH_HOME}/pool.gpg ]; then
+	echo "Error: the store is empty."
+	exit 1	
+    fi
+
+    if ! bauth-exists 1> /dev/null ; then
+	echo "Error: no entry for ${BAUTH_SERVICE} (${BAUTH_EMAIL})."
+	exit 1
+    fi
+
+    # Find the key.
+    BAUTH_KEY=$(${BAUTH_GPG} ${GPG_UID} --decrypt ${BAUTH_HOME}/pool.gpg 2> /dev/null | \
+		       grep "${BAUTH_SERVICE}-${BAUTH_EMAIL}" | cut -d " " -f2)
+
+    # Remove the old entry.
+    bauth-remove
+    BAUTH_EMAIL=${BAUTH_NEWEMAIL}
+    # Add it again with a new email.
+    bauth-put
+    echo "Email changed."
+}
+
+
 # Parse user arguments.
 for i in "$@"
 do
@@ -256,6 +304,10 @@ do
 	    ;;
 	-r|--remove)
 	    BAUTH_OPERATION="bauth-remove"
+	    shift
+	    ;;
+	-c|--change)
+	    BAUTH_OPERATION="bauth-change"
 	    shift
 	    ;;
 	-v|--version)
@@ -282,6 +334,14 @@ do
 	    BAUTH_EMAIL=${i#*=}
 	    if [ "$BAUTH_EMAIL" == "" ]; then
 		echo "Error: the email parameter was not specified. Run with -h for help."
+		exit 1
+	    fi
+	    shift
+	    ;;
+	-n=*|--newemail=*)
+	    BAUTH_NEWEMAIL=${i#*=}
+	    if [ "$BAUTH_NEWEMAIL" == "" ]; then
+		echo "Error: the new email parameter was not specified. Run with -h for help."
 		exit 1
 	    fi
 	    shift
@@ -331,6 +391,7 @@ if [ "$BAUTH_OPERATION" != "" ]; then
 
     # Call the requested operation.
     eval ${BAUTH_OPERATION}
+    exit 0
 else    
     show-help
     exit 0
